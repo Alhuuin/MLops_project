@@ -4,8 +4,10 @@ import requests
 from chatting.chatting import (
     Agent
 )
+from decouple import config
 
 API_BASE_URL = "http://127.0.0.1:8000"
+token = config("VALID_TOKEN")
 
 class FunctionInterface:
     def __init__(self):
@@ -252,7 +254,12 @@ class FunctionInterface:
                         "use_memory": use_memory,
                     }
 
-                    response = requests.post(f"{API_BASE_URL}/chat", json=payload)
+                    headers = {
+                        "Authorization": token,
+                        "Content-Type": "application/json"
+                    }
+
+                    response = requests.post(f"{API_BASE_URL}/chat", json=payload, headers= headers)
                     response.raise_for_status()
                     
                     result = response.json()

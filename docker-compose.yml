@@ -15,6 +15,8 @@ services:
       - tutorial-net
     depends_on:
       - mongo
+    env_file:  # Ajout de cette ligne
+      - .env
 
   ollama:
     build: ollama
