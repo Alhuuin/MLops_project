@@ -1,0 +1,46 @@
+version: "3"
+
+services:
+  web:
+    build: fastapi
+    ports:
+      - 8000:8000
+    volumes:
+      - ./fastapi:/app
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY=${DISPLAY}
+      - MONGO_URI=mongodb://mongo:27017/
+    networks:
+      - tutorial-net
+    depends_on:
+      - mongo
+
+  ollama:
+    build: ollama
+    ports:
+      - 11434:11434
+    volumes:
+      - tutorial-vol:/ollama
+    networks:
+      - tutorial-net
+    entrypoint: ["/usr/bin/bash", "/pull-llama3.sh"]
+  
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - tutorial-net
+
+networks:
+  tutorial-net:
+    driver: bridge
+
+volumes:
+  tutorial-vol:
+    driver: local
+  mongodb_data:
+    driver: local

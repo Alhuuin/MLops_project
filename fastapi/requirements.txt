@@ -1,0 +1,6 @@
+pymongo
+transformers
+accelerate
+fastapi
+uvicorn
+tk
