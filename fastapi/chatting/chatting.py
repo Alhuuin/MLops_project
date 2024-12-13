@@ -390,8 +390,8 @@ def chat(agents, subject, use_memory = True, use_location = None):
         print(response)
         print("\n\n")
         store_all_memories(agents=agents, memory=response)
-        return response
+        return response, agents
         
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to Ollama API: {e}")
-        return "Error"
+        return "Error", agents

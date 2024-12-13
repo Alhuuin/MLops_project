@@ -265,6 +265,12 @@ class FunctionInterface:
                     result = response.json()
                     dialog = result.get("dialog", "No response generated")
 
+                    updated_agents = result.get("updated_agents", [])
+                    for agent_data in updated_agents:
+                        for agent in selected_agents:
+                            if agent.agent_id == agent_data["agent_id"]:
+                                agent.opinions.update(agent_data.get("opinions", {}))
+
                 except requests.exceptions.RequestException as e:
                     dialog = f"Error: {e}"
 

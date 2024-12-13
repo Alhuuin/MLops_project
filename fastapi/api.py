@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response, Header, HTTPException, Depends
+from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from chatting.chatting import (
@@ -31,23 +31,13 @@ def verify_token(authorization: str = Header(...)):
     if authorization != VALID_TOKEN:
         raise HTTPException(status_code=400, detail="Invalid or missing token.")
 
-@app.get('/ask')
-def ask(prompt :str):
-    res = requests.post('http://ollama:11434/api/generate', json={
-        "prompt": prompt,
-        "stream" : False,
-        "model" : "llama3.2:1b"
-    })
-
-    return Response(content=res.text, media_type="application/json")
-
 @app.post("/chat")
 def start_chat(chat_request: ChatRequestModel, authorization: str = Depends(verify_token)):
-    dialog = chat(
+    dialog, updated_agents = chat(
                     agents=chat_request.agents,
                     subject=chat_request.subject,
                     use_memory=chat_request.use_memory,
                     use_location=chat_request.location
                 )
 
-    return {"dialog": dialog}
+    return {"dialog": dialog, "updated_agents": updated_agents}
