@@ -5,7 +5,6 @@ import json
 import torch
 import requests
 
-model="llama3.2:1b"
 llm_api_url = 'http://ollama:11434/api/generate'
 
 client = MongoClient("mongodb://mongo:27017/")
@@ -142,7 +141,7 @@ def extract_location(memory):
 ####################
 
 # Create a subject from the last memory of an agent
-def create_subject_from_memory(memory):
+def create_subject_from_memory(memory, model):
     subject_prompt = make_subject(memory)
 
     try:
@@ -162,7 +161,7 @@ def create_subject_from_memory(memory):
 
 
 # Extract the location from the conversation of the agents
-def extract_location_from_conversation(dialog):
+def extract_location_from_conversation(dialog, model):
     location_prompt = extract_location(dialog)
 
     try:
@@ -182,7 +181,7 @@ def extract_location_from_conversation(dialog):
         return ""
 
 # Extract the emotion of the agent and the importance of this conversation for them
-def extract_emotion_and_importance_from_conversation(dialog, agent_concerned):
+def extract_emotion_and_importance_from_conversation(dialog, agent_concerned, model):
     emotion_importance_prompt = extract_emotion_and_importance(memory=dialog, agent_concerned=agent_concerned)
 
     try:
@@ -208,7 +207,7 @@ def extract_emotion_and_importance_from_conversation(dialog, agent_concerned):
 
 # Create an opinion for one agent regarding a conversation and another agent inside this conversation
 # The importance of the dialog impact the opinion
-def extract_opinion_from_conversation(dialog, agent_concerned, other, emotion_json, print_op = False):
+def extract_opinion_from_conversation(dialog, agent_concerned, other, emotion_json, model, print_op = False):
     extract_prompt = extract_opinion(dialog, agent_concerned=agent_concerned, other=other, importance=emotion_json["importance"])
 
     try:
@@ -230,7 +229,7 @@ def extract_opinion_from_conversation(dialog, agent_concerned, other, emotion_js
         return ""
 
 # Create an updated opinion of an agent regarding another one. The opinion, emotion and importance impact it.
-def update_opinion_from_conversation(opinion, agent_concerned, other, emotion_json, print_update=False):
+def update_opinion_from_conversation(opinion, agent_concerned, other, emotion_json, model, print_update=False):
     update_prompt = update_opinion(opinion, agent_concerned=agent_concerned, other=other, emotion=emotion_json['emotion'], importance=emotion_json["importance"])
 
     try:
@@ -270,19 +269,19 @@ def store_memory(agent_id, agents_involved, importance, content, location, emoti
     db.agent_memories.insert_one(memory)
 
 # Store the new memory for all the agents regarding this new conversation
-def store_all_memories(agents, memory):
-    location = extract_location_from_conversation(dialog=memory)
+def store_all_memories(agents, memory, model):
+    location = extract_location_from_conversation(dialog=memory, model=model)
     for agent in agents:
         others = [a for a in agents if a != agent]
-        emotion_importance = extract_emotion_and_importance_from_conversation(dialog=memory, agent_concerned=agent)
+        emotion_importance = extract_emotion_and_importance_from_conversation(dialog=memory, agent_concerned=agent, model=model)
         
         store_memory(agent_id=agent.agent_id, agents_involved=[o.agent_id for o in others], importance=int(emotion_importance['importance']),
                      content=str(memory), location=location, emotion=emotion_importance['emotion'])
         for other in others:
             extract_opinion = extract_opinion_from_conversation(dialog=memory, agent_concerned=agent, other=other, 
-                                                                emotion_json=emotion_importance, print_op=True)
+                                                                emotion_json=emotion_importance, model=model, print_op=True)
             update_opinion = update_opinion_from_conversation(opinion=extract_opinion, agent_concerned=agent, other=other,
-                                                              emotion_json=emotion_importance, print_update=True)
+                                                              emotion_json=emotion_importance, model=model, print_update=True)
             agent.opinions[other.name] = update_opinion
             
 # Retrieve the memory of an agent
@@ -369,11 +368,11 @@ class Agent:
 ##########
 
 # Create a chat between the agents, using the subject, the memory (if necessary) and a location (if given)
-def chat(agents, subject, use_memory = True, use_location = None):
+def chat(agents, subject, model, use_memory = True, use_location = None):
     memory = retrieve_most_recent_shared_memory([agent.agent_id for agent in agents])
     
     if (memory != None and use_memory):
-        subject = create_subject_from_memory(memory=memory) + ' ' + subject
+        subject = create_subject_from_memory(memory=memory, model=model) + ' ' + subject
     
     message_prompt = make_initial_prompt(agents, subject, use_location)
 
@@ -389,7 +388,7 @@ def chat(agents, subject, use_memory = True, use_location = None):
         response = result["response"]
         print(response)
         print("\n\n")
-        store_all_memories(agents=agents, memory=response)
+        store_all_memories(agents=agents, memory=response, model=model)
         return response, agents
         
     except requests.exceptions.RequestException as e:
