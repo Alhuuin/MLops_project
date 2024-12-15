@@ -4,6 +4,7 @@ import requests
 import json
 import torch
 import requests
+import re
 
 llm_api_url = 'http://ollama:11434/api/generate'
 
@@ -325,6 +326,104 @@ def retrieve_most_recent_shared_memory(agent_ids):
     memories_list = list(memories)
     return memories_list[0] if memories_list else None
 
+###########################
+# User Imput Verification #
+###########################
+
+def validate_user_input(input_type, content):
+    """
+    Validates user input based on type using regex patterns to catch dangerous inputs.
+    Only blocks actual malicious content like system commands, code injection, etc.
+    """
+    if not content or not isinstance(content, str):
+        raise ValueError(f"Input must be a non-empty string")
+
+    # Patterns that indicate potential security issues
+    dangerous_patterns = [
+        r'.*system.*',           # System commands
+        r'.*exec.*',             # Code execution
+        r'.*eval .*',             # Code evaluation
+        r'{\s*system',            # System access attempts
+        r'{\s*prompt',            # Prompt injection attempts
+        r'<script>',              # Script injection
+        r'function\s*\(',         # Function calls
+        r'require\s*\(',          # Import attempts
+        r'process\.',             # Process access
+        r'__[a-zA-Z]+__',         # Python special attributes
+        r'import\s+',             # Import statements
+        r'subprocess\.',          # Subprocess calls
+        r'os\.',                  # OS module calls
+        r'sys\.',                 # System module calls
+        r'file\s*\(',            # File operations
+        r'open\s*\(',            # File opening
+        r'write\s*\(',           # File writing
+        r'\\x[0-9a-fA-F]{2}',    # Hex encoded characters
+        r'\\u[0-9a-fA-F]{4}',    # Unicode escapes
+        r'\\n',                  # Newline injection
+        r'\\r',                  # Carriage return injection
+        r'`.*`',                 # Backtick execution
+        r'\$\{.*\}',            # Shell variable expansion
+        r'&&',                   # Command chaining
+        r'\|\|',                 # Command chaining
+        r';\s*\w+',             # Command separation
+        r'>\s*\w+',             # Output redirection
+        r'<\s*\w+'              # Input redirection
+    ]
+
+    suspicious_patterns = [
+        r'ignore.*instructions',    # Attempts to ignore instructions
+        r'bypass.*security',        # Security bypass attempts
+        r'override.*system',        # System override attempts
+        r'as\s+an?\s+AI',          # AI impersonation
+        r'you\s+are\s+now',        # Attempts to change behavior
+        r'become\s+a',             # Attempts to change behavior
+        r'new\s+personality',       # Personality modification attempts
+    ]
+
+    for pattern in dangerous_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            raise ValueError(f"Invalid {input_type}: Contains potentially dangerous content")
+
+    if len(content) > 1000:  # Arbitrary reasonable limit
+        raise ValueError(f"Invalid {input_type}: Content too long")
+
+    if input_type == "name":
+        if not re.match(r'^[a-zA-Z\s\'-]{1,50}$', content):
+            raise ValueError(f"Invalid name: Should only contain letters, spaces, hyphens, and apostrophes")
+    
+    elif input_type == "gender":
+        valid_genders = ["male", "female", "other"]
+        if content.lower() not in valid_genders:
+            raise ValueError(f"Invalid gender: Please use one of: {', '.join(valid_genders)}")
+    
+    elif input_type == "agent_description":
+        if not re.match(r'^[a-zA-Z0-9\s\',.-?!()]{1,500}$', content):
+            raise ValueError(f"Invalid agent description: Should only contain letters, numbers, and basic punctuation")
+        
+        for pattern in suspicious_patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                raise ValueError(f"Invalid agent description: Contains suspicious content")
+    
+    elif input_type == "location":
+        if not re.match(r'^[a-zA-Z0-9\s\',.-]{1,100}$', content):
+            raise ValueError(f"Invalid location: Should only contain letters, numbers, and basic punctuation")
+    
+    elif input_type == "opinion":
+        if not re.match(r'^[a-zA-Z0-9\s\',.-?!()]{1,200}$', content):
+            raise ValueError(f"Invalid opinion: Should only contain letters, numbers, and basic punctuation")
+    
+    elif input_type == "context":
+        if not re.match(r'^[a-zA-Z0-9\s\',.-?!()]{1,500}$', content):
+            raise ValueError(f"Invalid context: Should only contain letters, numbers, and basic punctuation")
+        
+        for pattern in suspicious_patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                raise ValueError(f"Invalid context: Contains suspicious content")
+    
+    else:
+        raise ValueError(f"Unknown input type: {input_type}")
+
+    return content
 
 ##########
 # Agents #
@@ -332,10 +431,10 @@ def retrieve_most_recent_shared_memory(agent_ids):
 
 class Agent:
     def __init__(self, name, agent_id, user_input, gender):
-        self.name = name
+        self.name = validate_user_input("name", name)
         self.agent_id = agent_id 
-        self.user_input = user_input
-        self.gender = gender
+        self.user_input = validate_user_input("agent_description", user_input)
+        self.gender = validate_user_input("gender", gender)
         self.opinions = {}
         
     def __str__(self):
@@ -369,6 +468,13 @@ class Agent:
 
 # Create a chat between the agents, using the subject, the memory (if necessary) and a location (if given)
 def chat(agents, subject, model, use_memory = True, use_location = None):
+    if (len(agents) < 1):
+        return
+    
+    subject = validate_user_input("context", subject)
+    if use_location:
+        use_location = validate_user_input("location", use_location)
+    
     memory = retrieve_most_recent_shared_memory([agent.agent_id for agent in agents])
     
     if (memory != None and use_memory):
