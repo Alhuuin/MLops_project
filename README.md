@@ -29,7 +29,7 @@ Among the proposed options to go further, we chose the following :
 To launch this project, a number of things are needed:
 
 - docker and docker compose (to launch containers)
-- x11-xserver-utils (On ubuntu. It's to manage the graphic interface, otherwise the api part will crash). Once installed, use the command `xhost +local:docker`.
+- x11-xserver-utils (On ubuntu. It's to manage the graphic interface, otherwise the api part will crash). Once installed, use the command `xhost +"local:docker@"`.
 - a .env at the root of the project with a variable named `VALID_TOKEN`. Assign any value you like to this variable.
 
 On first launch (with `docker compose up --build`), the 2 ollama models will be downloaded. This will take some time. The interface will launch first, but requests will not work. Wait until the models are loaded before using the project. Subsequent launches will be almost immediate.
