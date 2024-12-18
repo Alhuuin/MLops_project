@@ -50,7 +50,7 @@ def accept_next_model(authorization: str = Depends(verify_token)):
 
 @app.post("/chat")
 def start_chat(chat_request: ChatRequestModel, authorization: str = Depends(verify_token)):
-    chosen_model = base_model if random.random() < p  else new_model
+    chosen_model = base_model if random.random() < p  else next_model
     print(f"model chosen for this request: {chosen_model}")
     dialog, updated_agents = chat(
                     agents=chat_request.agents,
