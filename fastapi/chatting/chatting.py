@@ -50,7 +50,7 @@ else:
 def make_initial_prompt(agents, subject, location):
     descriptions = [f"Here is a description of {agent.name}: {agent.user_input}, {agent.gender}" for agent in agents]
     opinions = [f"Here is what {agent1.name} thinks about {agent2.name}:" + '''
-            ''' + f"{agent1.opinions[agent2.name]}" for agent1 in agents for agent2 in agents if agent1 != agent2]
+            ''' + f'{agent1.opinions.get(agent2.name, "")}' for agent1 in agents for agent2 in agents if agent1 != agent2]
     agent1 = agents[0]
     message_content = f"""
             Context:
@@ -115,7 +115,7 @@ def update_opinion(opinion, agent_concerned, other, emotion=None, importance=0):
     message_content = f"""
     {agent_concerned.name}: {agent_concerned.gender}, {agent_concerned.user_input}
     {other.name}: {other.gender}, {other.user_input}
-    Last opinion of {agent_concerned.name} about {other.name}: {agent_concerned.opinions[other.name]}
+    Last opinion of {agent_concerned.name} about {other.name}: {agent_concerned.opinions.get(other.name, "")}
     Analyzed phrase or conversation: "{opinion}"
     {f'Emotion felt by {agent_concerned.name}: "{emotion}"' if emotion else ''}
 
