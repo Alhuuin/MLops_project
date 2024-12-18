@@ -32,7 +32,6 @@ class ChatRequestModel(BaseModel):
     use_memory: bool = True
 
 def verify_token(authorization: str = Header(...)):
-    """Vérifie que le token fourni dans le header est valide."""
     if authorization != VALID_TOKEN:
         raise HTTPException(status_code=400, detail="Invalid or missing token.")
 

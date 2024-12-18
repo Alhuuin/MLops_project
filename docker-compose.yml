@@ -12,10 +12,10 @@ services:
       - DISPLAY=${DISPLAY}
       - MONGO_URI=mongodb://mongo:27017/
     networks:
-      - tutorial-net
+      - generative-net
     depends_on:
       - mongo
-    env_file:  # Ajout de cette ligne
+    env_file:
       - .env
 
   ollama:
@@ -25,7 +25,7 @@ services:
     volumes:
       - tutorial-vol:/ollama
     networks:
-      - tutorial-net
+      - generative-net
     entrypoint: ["/usr/bin/bash", "/pull-llama3.sh"]
   
   mongo:
@@ -35,10 +35,10 @@ services:
     volumes:
       - mongodb_data:/data/db
     networks:
-      - tutorial-net
+      - generative-net
 
 networks:
-  tutorial-net:
+  generative-net:
     driver: bridge
 
 volumes:
